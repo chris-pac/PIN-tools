@@ -10,6 +10,8 @@ struct timespec start, end;
 PIN_LOCK lock;
 INT32 numThreads = 0;
 
+uint64_t clock_avg_t = 0;
+
 ofstream OutFile;
 
 static  TLS_KEY tls_key;
@@ -55,8 +57,9 @@ VOID AfterLock( THREADID threadid )
     thread_data_t* tdata = get_tls(threadid);
     struct timespec mend;
     clock_gettime(CLOCK_MONOTONIC, &mend);
-    
-    tdata->mtime += BILLION * (mend.tv_sec - tdata->mstart.tv_sec) + mend.tv_nsec - tdata->mstart.tv_nsec;
+   
+    tdata->mcount++;  
+    tdata->mtime += (BILLION * (mend.tv_sec - tdata->mstart.tv_sec) + mend.tv_nsec - tdata->mstart.tv_nsec) - clock_avg_t;
 }
 
 // This routine is executed for each image.
@@ -116,6 +119,34 @@ VOID ThreadFini(THREADID threadid, const CONTEXT *ctxt, INT32 code, VOID *v)
     clock_gettime(CLOCK_MONOTONIC, &tdata->tend);
 }
 
+VOID calcAvgTimes()
+{
+    struct timespec tmp;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for(int i = 0; i<100; i++)
+    {
+       clock_gettime(CLOCK_MONOTONIC, &tmp);
+    }
+    
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    clock_avg_t = BILLION * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
+    clock_avg_t = clock_avg_t / 100.0;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for(int i = 0; i<100; i++)
+    {
+        uint64_t tmp = 0;
+        tmp += (BILLION * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec) - clock_avg_t;
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    uint64_t inst_avg_time = BILLION * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;	
+    inst_avg_time = inst_avg_time / 100.0;
+
+    clock_avg_t = 2 * clock_avg_t + inst_avg_time;
+}
 int main(int argc, char * argv[])
 {
     //  Initialize pin
@@ -139,12 +170,14 @@ int main(int argc, char * argv[])
 
     // Register Fini to be called when the application exits
     PIN_AddFiniFunction(Fini, 0);
-    
+   
+    //c
+    calcAvgTimes();
+ 
     clock_gettime(CLOCK_MONOTONIC, &start);
 
     thread_data_t* tdata = new thread_data_t;
     clock_gettime(CLOCK_MONOTONIC, &tdata->tstart);
-
 
     // Start the program, never returns
     PIN_StartProgram();
