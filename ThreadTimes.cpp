@@ -87,15 +87,19 @@ VOID Fini(INT32 code, VOID *v)
     // Write to a file since cout and cerr maybe closed by the application
     clock_gettime(CLOCK_MONOTONIC, &end);
     uint64_t total_elapsed = BILLION * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
-    OutFile << "Total elapsed time: " << total_elapsed << endl;
+    //OutFile << "Total elapsed time: " << total_elapsed << endl;
     uint64_t m_elapsed;
 
+    OutFile << setw(7) <<  "Thread " << setw(15) << "% of runtime " << setw(21) << "% waiting for a lock" << endl;
     for (INT32 t = 0; t < numThreads; t++)
     {
         thread_data_t* tdata = get_tls(t);
         m_elapsed = BILLION * (tdata->tend.tv_sec - tdata->tstart.tv_sec) + tdata->tend.tv_nsec - tdata->tstart.tv_nsec;
-        OutFile << "Thread : " << t << " elapsed time: " << m_elapsed << " (" << setprecision(2) <<  ((double) m_elapsed / (double)total_elapsed) * 100.00 << "%)" \
+       /* OutFile << "Thread : " << t << " elapsed time: " << m_elapsed << " (" << setprecision(2) <<  ((double) m_elapsed / (double)total_elapsed) * 100.00 << "%)" \
         << " lock time: " << tdata->mtime << " (" << setprecision(2) << ((double)tdata->mtime / (double)m_elapsed) * 100.00 << "%)" << endl;
+    
+       */       
+       OutFile << setw(6) << t << setw(15) << setprecision(2) <<  ((double) m_elapsed / (double)total_elapsed) * 100.00 << setw(22) << setprecision(2) << ((double)tdata->mtime / (double)m_elapsed) * 100.00 <<endl;
     }
     OutFile.close();
 }
